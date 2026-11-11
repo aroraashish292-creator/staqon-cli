@@ -1,6 +1,6 @@
 {
-  "name": "@staqon/cli",
-  "version": "0.1.0",
+  "name": "@staqon.one/cli",
+  "version": "0.1.1",
   "description": "Command-line tool for StaqOn workspace owners — send messages, post ads, run e-StaqOn Verify approvals, manage external/internal team members, and raise escalations, all without ever handling a raw API key.",
   "bin": {
     "staqon": "./dist/index.js"
@@ -27,6 +27,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nsbm542-gif/staqon-cli.git"
+    "url": "git+https://github.com/aroraashish292-creator/staqon-cli.git"
   }
 }
