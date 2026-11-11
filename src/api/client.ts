@@ -1,9 +1,10 @@
-import { BASE_URL, loadSession, saveSession, clearSession } from '../config.js';
+﻿import { BASE_URL, loadSession, saveSession, clearSession } from '../config.js';
 
 export class StaqOnApiError extends Error {
   constructor(
     public status: number,
     public body: Record<string, unknown>,
+    public retryAfter?: number,
   ) {
     super(typeof body.error === 'string' ? body.error : `HTTP ${status}`);
   }
@@ -65,6 +66,16 @@ export async function proxy(ep: string, opts: CallOptions = {}): Promise<Record<
 
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 
+  // Retry-After is sent as a header on 429s; some 429 bodies also carry retry_after_seconds.
+  // Either one ends up on the thrown error so callers (and --json output) can back off correctly.
+  const retryAfterHeader = res.headers.get('Retry-After');
+  const retryAfter =
+    retryAfterHeader != null
+      ? Number(retryAfterHeader)
+      : typeof body.retry_after_seconds === 'number'
+        ? body.retry_after_seconds
+        : undefined;
+
   if (res.status === 401) {
     // Session is gone/expired/revoked server-side — don't leave a dead token lying around locally.
     await clearSession();
@@ -72,7 +83,7 @@ export async function proxy(ep: string, opts: CallOptions = {}): Promise<Record<
       error: (body.error as string) ?? 'This CLI session is missing, expired or revoked. Run: staqon login',
     });
   }
-  if (!res.ok) throw new StaqOnApiError(res.status, body);
+  if (!res.ok) throw new StaqOnApiError(res.status, body, retryAfter);
   return body;
 }
 

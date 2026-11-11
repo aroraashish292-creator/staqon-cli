@@ -22,6 +22,8 @@ This prints an 8-character code and a link (`https://staqon.one/cli?code=XXXX-XX
 
 The code expires in 10 minutes. Once approved, the CLI stores a session token locally (`~/.staqon/credentials.json`, permissions `0600`) and you won't need to log in again until that session is revoked or expires.
 
+**Sessions renew themselves on use — no re-login needed for unattended/cron use.** Every call slides `expires_at` forward to 90 days from that call, capped at an absolute 1 year from pairing. So a cron job or server process that calls the CLI at least once every 90 days stays signed in indefinitely, up to that 1-year cap — nothing to run, no owner approval needed, it's automatic. There is no separate "refresh" command because there's nothing to trigger: any real command (including `staqon whoami`) renews the session as a side effect. Watch `staqon whoami`'s `session.expires_at` and `session.absolute_expires_at` to know when you're approaching either limit — once the absolute cap is hit, only `staqon login` (with fresh owner approval) can continue.
+
 **A prerequisite:** the workspace owner must turn on "Allow CLI access" in **Workspace Settings → API → CLI access** before `staqon login` can succeed. This is a separate, per-workspace switch — turning it off immediately signs out every paired computer.
 
 ```bash
@@ -136,6 +138,26 @@ staqon webhooks [--internal]
 
 `status` reports member counts and your current rate-limit usage for the External (default) or Internal surface. `webhooks` reports each registered webhook's health — a webhook that fails 10 consecutive deliveries auto-disables, and this is the only way to notice that happened short of your own monitoring.
 
+## Scripting and unattended use
+
+Pass `--json` (anywhere in the command line) to get machine-readable errors instead of prose, and stable exit codes to branch on without parsing error text:
+
+```bash
+staqon --json status --team sales || echo "exit code: $?"
+```
+
+On failure, `--json` prints one line to stderr: `{"ok":false,"status":<http status>,"error":"...","retry_after":<seconds, on 429s>,"detail":{...}}`. Exit codes:
+
+| Code | Meaning |
+|---|---|
+| `3` | Not signed in, or the session is missing/expired/revoked — run `staqon login` |
+| `4` | Rate limited — see `retry_after` (seconds) |
+| `5` | Team or key problem — no eligible key (`no_key`), several eligible teams (`team_required`, re-run with `--team`), or the workspace's own key is at its own limit |
+| `6` | Consent missing — the target member hasn't approved the relevant link / API messages |
+| `1` | Anything else (validation errors, network errors) |
+
+Without `--json`, output and exit codes are unchanged from before (`Error: <message>`, exit `1` for every failure) — this is additive, not a breaking change.
+
 ## A note on API keys and this CLI
 
 Creating a **new** Messaging or Ad API key from the dashboard requires the workspace's Link integration to be set up first — the "+ New key" button is disabled with a "Set up Link first" tooltip until then. Keys created before Link was required keep working. This restriction is enforced in the dashboard UI, not by the API itself, and it has nothing to do with CLI pairing — CLI access is a separate switch and doesn't require Link at all.
@@ -153,4 +175,3 @@ Creating a **new** Messaging or Ad API key from the dashboard requires the works
 ## License
 
 MIT
-</content>

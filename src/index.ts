@@ -9,6 +9,7 @@ import { registerMessagingCommands } from './commands/messaging.js';
 import { registerVerifyCommands } from './commands/verify.js';
 import { registerAdCommands } from './commands/ad.js';
 import { registerMiscCommands } from './commands/misc.js';
+import { setJsonErrors } from './output.js';
 
 // Read the version from package.json rather than hardcoding it here, so `staqon --version`
 // always matches what was actually published.
@@ -23,7 +24,17 @@ program
     'Command-line tool for a StaqOn workspace owner. Sign in with `staqon login` — a device-pairing ' +
       'flow approved from your StaqOn dashboard. The CLI never holds or sees a raw API key.',
   )
-  .version(pkg.version);
+  .version(pkg.version)
+  .option(
+    '--json',
+    'on any failure, print one machine-readable JSON line to stderr ({"ok":false,"status":...,"error":...}) ' +
+      'instead of "Error: ...", and use stable exit codes (3 = not signed in, 4 = rate limited, 5 = team/key ' +
+      'problem, 6 = consent missing, 1 = anything else) -- for scripts and unattended use.',
+  );
+
+program.hook('preAction', () => {
+  setJsonErrors(Boolean(program.opts().json));
+});
 
 registerAuthCommands(program);
 registerMemberCommands(program);
@@ -36,3 +47,4 @@ program.parseAsync(process.argv).catch((e) => {
   console.error('Error:', e instanceof Error ? e.message : e);
   process.exit(1);
 });
+
