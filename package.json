@@ -1,7 +1,7 @@
 {
   "name": "@staqon.one/cli",
-  "version": "0.1.7",
-  "description": "Command-line tool for StaqOn workspace owners - send messages, post ads, run e-StaqOn Verify approvals, manage external/internal team members, and raise escalations, all without ever handling a raw API key.",
+  "version": "0.1.8",
+  "description": "Command-line tool for StaqOn workspace owners — send messages, post ads, run e-StaqOn Verify approvals, manage external/internal team members, and raise escalations, all without ever handling a raw API key.",
   "bin": {
     "staqon": "./dist/index.js"
   },

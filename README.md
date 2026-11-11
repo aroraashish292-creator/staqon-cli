@@ -113,11 +113,13 @@ A one-way push into the member's API Messages feed  -  not a conversation (no re
 
 ```bash
 staqon verify start --username jane.doe --action "Withdraw $500" --context "Approve withdrawal of $500 to your linked bank account?" [--ttl 60]
-staqon verify check --id <verification_id>
+staqon verify check --id <verification_id> [--wait <seconds>]
 staqon verify cancel --id <verification_id>
 ```
 
 `start` pushes an approval prompt to the member's StaqOn app and returns a `verification_id`. Poll `check` until you get `verified: true` (approved), or `verified: false` with a `reason` of `pending`, `declined`, `timeout`, or `cancelled`. `ttl` is 30-180 seconds (default 30; out-of-range values are clamped, not rejected). `cancel` withdraws a still-pending request  -  if the member already answered, you'll get a 409 and their answer stands, not your cancellation.
+
+**`check` supports long-polling via `--wait <seconds>`** (0-25, default 0  -  instant return, same as before). While the request is still `pending`, the CLI holds the connection open and the server re-checks every 500ms, returning as soon as it resolves or the window elapses  -  this cuts polling volume roughly 10x versus calling `check` in a tight loop. See also the `verify.resolved` webhook below for a poll-free alternative that needs no polling at all.
 
 This requires an approved, **unexpired** consent link for the member (stricter than `messages send`'s check).
 
@@ -128,7 +130,27 @@ This requires an approved, **unexpired** consent link for the member (stricter t
 - **You cancel an already-cancelled request.** Safe and idempotent: `200` with `already: true`, not an error.
 - **After a successful cancel**, `check` reports `reason: "cancelled"` from then on, and the member's open prompt closes immediately on web, app, and push  -  they can no longer approve it.
 - **A cancel never counts toward, or resets, the 5-per-minute Start limit** for that member.
-- **Polling `check` is rate-limited same as everything else.** At one call a second you'll burn through the 30/min session budget in under 30 seconds  -  space out your polling (every 3-5 seconds is usually enough; a push approval is answered by a human, not a machine) or watch for a future webhook-based alternative (not available yet  -  see the changelog for updates).
+- **Polling `check` is rate-limited same as everything else.** At one call a second you'll burn through the 30/min session budget in under 30 seconds. Space out your polling, use `--wait` to long-poll (above), or set up the `verify.resolved` webhook (below) and stop polling altogether.
+
+#### `verify.resolved` webhook  -  skip polling entirely
+
+Set a webhook URL on your **messaging key** (Workspace Settings → API → Messaging API → "Set webhook URL"  -  the same key `verify start`/`check`/`cancel` use) and StaqOn POSTs a signed `verify.resolved` event the moment a member approves or declines, instead of you polling for it:
+
+```json
+{
+  "event": "verify.resolved",
+  "timestamp": "2026-11-11T18:51:39+05:30",
+  "data": {
+    "verification_id": "57531e6a-d80b-40f7-bb16-e04d0f10d628",
+    "action": "Withdraw $500",
+    "context": "Approve withdrawal of $500 to your linked bank account?",
+    "decision": "approved",
+    "resolved_at": "2026-11-11 18:51:39"
+  }
+}
+```
+
+Signed HMAC-SHA256 of the raw body in `X-StaqOn-Signature` (hex), event name in `X-StaqOn-Event`  -  verify it the same way you'd verify the `ad.completed` webhook. One synchronous delivery attempt; a failure is retried twice more (+5s, +30s) after your `start`/`check`/`cancel` caller already got its own response, so de-duplicate on `verification_id`. Fires once per resolution, for both `approved` and `declined` (check `data.decision`)  -  it does **not** fire for `expired` or `cancelled`, since neither is something a member did; you'll only see those via `check`'s `reason`. Unlike the `member.*` webhooks, there's no delivery-failure tracking or auto-disable here yet  -  a dead endpoint just stops receiving events until you fix it.
 
 ### Advertisement API
 

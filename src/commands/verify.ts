@@ -41,13 +41,22 @@ export function registerVerifyCommands(program: Command): void {
     verify
       .command('check')
       .description('Poll the outcome of a verification request — only verified:true means the member approved in time')
-      .requiredOption('--id <verification_id>'),
-  ).action(async (opts: { id: string; team?: string }) => {
+      .requiredOption('--id <verification_id>')
+      .option('--wait <seconds>', 'long-poll: hold the connection open while the request is still pending, 0-25 (default 0, instant return)'),
+  ).action(async (opts: { id: string; wait?: string; team?: string }) => {
     try {
+      let waitSeconds: number | undefined;
+      if (opts.wait !== undefined) {
+        waitSeconds = Number(opts.wait);
+        if (!Number.isFinite(waitSeconds) || waitSeconds < 0 || waitSeconds > 25) {
+          fail(new Error('--wait must be a number between 0 and 25'));
+          return;
+        }
+      }
       const body = await proxy('external/staqon-verify-check', {
         method: 'POST',
         team: opts.team,
-        json: { verification_id: opts.id },
+        json: { verification_id: opts.id, wait_seconds: waitSeconds },
       });
       printJson(body);
     } catch (e) {
