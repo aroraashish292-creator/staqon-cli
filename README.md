@@ -1,4 +1,4 @@
-# @staqon/cli
+# @staqon.one/cli
 
 A command-line tool for a StaqOn workspace owner — send messages, post ads, run e-StaqOn Verify approvals, manage External and Internal team members, and raise escalation matters, all from your terminal.
 
@@ -7,7 +7,7 @@ The CLI never holds, sees, or asks you to paste a raw API key. Instead it uses a
 ## Install
 
 ```bash
-npm install -g @staqon/cli
+npm install -g @staqon.one/cli
 ```
 
 Requires Node 18+.
