@@ -5,12 +5,16 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
+    ignore:
+      # Major-version bumps of these tend to need manual review (breaking
+      # changes in TS language features, @types/node following Node's own
+      # major versions, etc.) — Dependabot still proposes minor/patch.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "dependencies"
