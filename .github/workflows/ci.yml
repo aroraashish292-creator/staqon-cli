@@ -23,3 +23,5 @@ jobs:
       - run: npm run build
       - name: Smoke test CLI help
         run: node dist/index.js --help
+      - name: Audit dependencies (fails on known high/critical vulns)
+        run: npm audit --audit-level=high
