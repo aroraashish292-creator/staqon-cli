@@ -59,7 +59,7 @@ export function registerMessagingCommands(program: Command): void {
       dryRun?: boolean;
     }) => {
       try {
-        const card = parseCardOpt(opts);
+        const card = await parseCardOpt(opts);
         const body = await proxy<CommentDryRunResponse | Record<string, unknown>>('external/comment', {
           method: 'POST',
           team: opts.team,
@@ -121,7 +121,7 @@ export function registerMessagingCommands(program: Command): void {
       dryRun?: boolean;
     }) => {
       try {
-        const card = parseCardOpt(opts);
+        const card = await parseCardOpt(opts);
         const body = await proxy<InternalMessageDryRunResponse | Record<string, unknown>>('internal/message', {
           method: 'POST',
           team: opts.team,
