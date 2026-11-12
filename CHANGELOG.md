@@ -1,6 +1,17 @@
 # Changelog
 
-All notable changes to `@staqon.one/cli` are documented here. Versions follow `MAJOR.MINOR.PATCH`; this package is pre-1.0, so a MINOR bump can still include a breaking change  -  read this file when you upgrade.
+All notable changes to `@staqon.one/cli` are documented here. Versions follow `MAJOR.MINOR.PATCH`. From 1.0.0 onward, a MINOR release never breaks an existing command or flag  -  only a MAJOR (2.0.0+) release would.
+
+## 1.0.0  -  first stable release
+
+No behavior change from 0.1.8  -  this release marks the command surface (`members`, `messages`, `internal-message`, `verify`, `ad`, `escalation`, `link`, `status`, `webhooks`, every flag and exit code) as stable. From here, a breaking change to any of that would require a 2.0.0, not a MINOR bump.
+
+Also rolls up everything shipped across the 0.1.x line into one stable baseline:
+
+- Device-pairing login with self-renewing sessions (90-day sliding, 1-year absolute cap)
+- Members, messaging, internal messaging, e-StaqOn Verify (including `--wait` long-polling and the `verify.resolved` webhook), the Advertisement API, escalation matters, and Link (invite/list)
+- `--json` scripting support with 5 stable exit codes (`1`, `3`, `4`, `5`, `6`)
+- Full documentation pass: a "Start here" walkthrough, a real example response for every command, and a Command &rarr; Swagger endpoint cross-reference table
 
 ## 0.1.8
 
