@@ -34,7 +34,7 @@ export function registerVerifyCommands(program: Command): void {
       dryRun?: boolean;
     }) => {
       try {
-        const card = parseCardOpt(opts);
+        const card = await parseCardOpt(opts);
         if (card !== undefined && typeof card === 'object' && card !== null && 'button' in card) {
           fail(new Error('card.button is not allowed for verification requests (the server rejects it with 400)'));
         }

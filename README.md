@@ -1,5 +1,9 @@
 # @staqon.one/cli
 
+[![CI](https://github.com/aroraashish292-creator/staqon-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/aroraashish292-creator/staqon-cli/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@staqon.one/cli.svg)](https://www.npmjs.com/package/@staqon.one/cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A command-line tool for a StaqOn workspace owner  -  send messages, post ads, run e-StaqOn Verify approvals, manage External and Internal team members, and raise escalation matters, all from your terminal.
 
 The CLI never holds, sees, or asks you to paste a raw API key. Instead it uses a device-pairing flow: you approve each computer once from your StaqOn dashboard, and after that every call goes through StaqOn's own proxy on your workspace's behalf. Full technical details for engineers who want them are at [`/developer`](https://staqon.one/developer) (the live, interactive Swagger spec)  -  this README covers the CLI's own commands.
