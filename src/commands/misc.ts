@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { proxy, MAX_LIST_LIMIT } from '../api/client.js';
 import { fail, printJson } from '../output.js';
+import type { StatusResponse, WebhookStatusResponse, EscalationListResponse } from '../api/responses.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -49,7 +50,7 @@ export function registerMiscCommands(program: Command): void {
       .option('--status <status>', 'open|in_progress|resolved'),
   ).action(async (opts: { page: string; limit: string; status?: string; team?: string }) => {
     try {
-      const body = await proxy('external/escalations', {
+      const body = await proxy<EscalationListResponse>('external/escalations', {
         method: 'GET',
         team: opts.team,
         query: { page: opts.page, limit: opts.limit, status: opts.status },
@@ -68,6 +69,10 @@ export function registerMiscCommands(program: Command): void {
   ).action(async (opts: { matterId: string; team?: string }) => {
     try {
       const body = await proxy('external/escalations', { method: 'GET', team: opts.team, query: { matter_id: opts.matterId } });
+      // NOTE: --matter-id passes `matter_id`, but EscalationMatter's real key is `uuid`, not
+      // `matter_id` — this command's query param naming vs. the confirmed response shape hasn't
+      // been reconciled/tested this session (list, not get, is what was pulled live), so the
+      // response here stays untyped (proxy()'s default) until a real --matter-id call is tested.
       printJson(body);
     } catch (e) {
       fail(e);
@@ -82,7 +87,10 @@ export function registerMiscCommands(program: Command): void {
       .option('--internal', 'use the Internal surface instead (no guest-role filter)'),
   ).action(async (opts: { internal?: boolean; team?: string }) => {
     try {
-      const body = await proxy(opts.internal ? 'internal/status' : 'external/status', { method: 'GET', team: opts.team });
+      const body = await proxy<StatusResponse | Record<string, unknown>>(opts.internal ? 'internal/status' : 'external/status', {
+        method: 'GET',
+        team: opts.team,
+      });
       printJson(body);
     } catch (e) {
       fail(e);
@@ -97,10 +105,13 @@ export function registerMiscCommands(program: Command): void {
       .option('--internal', 'use the Internal surface instead'),
   ).action(async (opts: { internal?: boolean; team?: string }) => {
     try {
-      const body = await proxy(opts.internal ? 'internal/webhook-status' : 'external/webhook-status', {
-        method: 'GET',
-        team: opts.team,
-      });
+      const body = await proxy<WebhookStatusResponse | Record<string, unknown>>(
+        opts.internal ? 'internal/webhook-status' : 'external/webhook-status',
+        {
+          method: 'GET',
+          team: opts.team,
+        },
+      );
       printJson(body);
     } catch (e) {
       fail(e);

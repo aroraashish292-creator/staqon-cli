@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { readFile } from 'node:fs/promises';
 import { proxy, BASE_URL, loadSession } from '../api/client.js';
 import { fail, printJson } from '../output.js';
+import type { AdSendDryRunResponse } from '../api/responses.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -62,7 +63,10 @@ export function registerAdCommands(program: Command): void {
       dryRun?: boolean;
     }) => {
       try {
-        const body = await proxy('external/ad', {
+        // dry_run returns a materially different, typed shape (AdSendDryRunResponse); a real
+        // send's response type is not yet confirmed against a live call, so it stays untyped
+        // (Record<string, unknown>, proxy()'s default) until that's done.
+        const body = await proxy<AdSendDryRunResponse | Record<string, unknown>>('external/ad', {
           method: 'POST',
           team: opts.team,
           json: {

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { proxy } from '../api/client.js';
 import { fail, printJson } from '../output.js';
+import type { WebhookStatusResponse } from '../api/responses.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -30,7 +31,7 @@ export function registerWebhookCommands(program: Command): void {
   )).action(async (opts: { team?: string; purpose: string }) => {
     try {
       if (!['message', 'ad'].includes(opts.purpose)) fail(new Error('--purpose must be "message" or "ad"'));
-      const body = await proxy(epFor('webhook-status', opts.purpose), { method: 'GET', team: opts.team });
+      const body = await proxy<WebhookStatusResponse>(epFor('webhook-status', opts.purpose), { method: 'GET', team: opts.team });
       printJson(body);
     } catch (e) {
       fail(e);
@@ -88,7 +89,7 @@ export function registerWebhookCommands(program: Command): void {
       .description('List this internal key\'s webhooks and their health — the workspace\'s Internal Link webhook plus this key\'s own Verify webhook, if set'),
   ).action(async (opts: { team?: string }) => {
     try {
-      const body = await proxy('internal/webhook-status', { method: 'GET', team: opts.team });
+      const body = await proxy<WebhookStatusResponse>('internal/webhook-status', { method: 'GET', team: opts.team });
       printJson(body);
     } catch (e) {
       fail(e);
