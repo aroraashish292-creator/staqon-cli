@@ -66,6 +66,35 @@ Every `429` carries `Retry-After` in seconds  -  wait that long and retry rather
 
 ## Commands
 
+Every command below names the exact Swagger/OpenAPI path it calls (`GET`/`POST` + path under `https://staqon.one`) so you can jump straight to the full request/response schema, headers, and error shapes in the [live spec](https://staqon.one/developer) instead of re-deriving them from this README.
+
+| CLI command | Swagger endpoint |
+|---|---|
+| `members list` | `GET /external/members.php` |
+| `members get` | `GET /external/member.php` |
+| `members add` | `POST /external/add-member.php` |
+| `members remove` | `POST /external/remove-member.php` |
+| `members teams` | `GET /external/member-teams.php` |
+| `internal-members` | `GET /internal/members.php` |
+| `messages send` | `POST /external/message.php` |
+| `messages comment` | `POST /external/message.php` |
+| `messages read` | `GET /external/messages.php` |
+| `internal-message` | `POST /internal/message.php` |
+| `verify start` | `POST /external/staqon-verify-start.php` |
+| `verify check` | `POST /external/staqon-verify-check.php` |
+| `verify cancel` | `POST /external/staqon-verify-cancel.php` |
+| `ad upload-image` | `POST /external/ad-image.php` |
+| `ad send` | `POST /external/ad.php` |
+| `ad status` | `GET /external/ad-status.php` |
+| `escalation raise` | `POST /external/escalation.php` |
+| `escalation list` / `escalation get` | `GET /external/escalations.php` |
+| `link invite` | `POST /api/link-invite.php` |
+| `link list` | `POST /api/link-list.php` |
+| `status` | `GET /external/status.php` (or `GET /internal/status.php` with `--internal`) |
+| `webhooks` | `GET /external/webhook-status.php` (or `GET /internal/webhook-status.php` with `--internal`) |
+
+The CLI never calls these with a raw API key &mdash; see [How calls are authorized](#how-calls-are-authorized) &mdash; but every request body, response shape, and error code is identical to calling that same endpoint directly.
+
 ### Members (External team)
 
 ```bash
