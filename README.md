@@ -33,14 +33,16 @@ staqon whoami
 ```json
 {
   "ok": true,
-  "workspace": "Partners Channels",
-  "teams": [{ "team_id": 3, "team_slug": "partners-channels" }],
-  "rate_limit": { "used": 0, "limit_per_min": 30, "limit_per_day": 3000 },
-  "session_expires": "2027-02-11T00:00:00Z"
+  "workspace": { "id": 42, "slug": "partners-channels", "name": "Partners Channels" },
+  "session": { "id": 9, "device_label": "Windows", "created_at": "2026-11-11 09:00:00", "expires_at": "2027-02-10 09:00:00", "absolute_expires_at": "2027-11-11 09:00:00" },
+  "limits": { "per_minute": 30, "per_day": 3000, "used_last_minute": 0, "used_today": 0 },
+  "access": [
+    { "surface": "external", "purpose": "message", "endpoints": ["members list", "messages send", "..."], "families": ["messaging"], "teams": [{ "team_id": 3, "team_slug": "partners-channels", "team_name": "Partners Channels" }], "automatic": true }
+  ]
 }
 ```
 
-If `teams` shows more than one entry, every command from here on needs `--team <id-or-slug>` to say which one you mean.
+Each entry in `access` is one surface+purpose combination your workspace has a key for, with the real list of CLI commands it covers and the eligible team(s) for it. If an entry's `teams` has more than one row, every command in that entry needs `--team <id-or-slug>` to say which one you mean; `automatic: true` means there's exactly one, so you don't have to.
 
 **4. Connect a real customer, and message them.**
 
