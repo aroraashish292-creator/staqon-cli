@@ -81,6 +81,36 @@ staqon members teams --external-ref your-ref-from-link-invite
 
 Removing a member archives their thread (history is kept) and drops their team/conversation membership.
 
+**Example  -  `members list`:**
+```json
+{
+  "ok": true,
+  "members": [
+    { "member_id": 101494, "name": "Anuvika Enterprises", "email": "anuvikaenterprises@gmail.com", "username": "8176m2858", "status": "active", "joined_at": "2026-11-11 16:40:14" }
+  ],
+  "total": 1086,
+  "page": 1,
+  "pages": 22
+}
+```
+
+**Example  -  `members add`:**
+```json
+{
+  "ok": true,
+  "member_id": 101855,
+  "username": "4471k2093",
+  "conversation_id": 90331,
+  "status": "active",
+  "login_url": "https://staqon.one/m/4471k2093"
+}
+```
+
+**Example  -  `members remove`:**
+```json
+{ "ok": true, "removed": true, "member_id": 101855 }
+```
+
 ### Internal team members
 
 ```bash
@@ -101,6 +131,25 @@ staqon messages read --username jane.doe [--limit 50] [--before 1000 | --after 2
 - `read` requires an **approved consent link** for that member  -  you'll get a 403 if the member hasn't linked. `send`/`comment` don't need that link (writing in is the workspace's own authority).
 - `--before`/`--after` page through history; use one or the other, not both.
 
+**Example  -  `messages send`:**
+```json
+{ "ok": true, "message_id": 884213, "conversation_id": 90331 }
+```
+
+**Example  -  `messages read`:**
+```json
+{
+  "ok": true,
+  "conversation_id": 90331,
+  "member": { "username": "jane.doe", "name": "Jane Doe" },
+  "messages": [
+    { "id": 884210, "direction": "out", "text": "Your order has shipped", "sent_at": "2026-11-11 14:02:10" },
+    { "id": 884213, "direction": "out", "text": "Hello!", "sent_at": "2026-11-11 14:05:41" }
+  ],
+  "paging": { "has_more": false }
+}
+```
+
 ### Internal messaging
 
 ```bash
@@ -108,6 +157,11 @@ staqon internal-message --username jane.doe --message "Your ticket was updated" 
 ```
 
 A one-way push into the member's API Messages feed  -  not a conversation (no replies, reactions, or attachments). Requires the member's explicit, separate consent for *internal* messages: a 403 means they haven't opted in; a 404 with "Internal Link is not set up" means the workspace hasn't configured that gate at all yet.
+
+**Example:**
+```json
+{ "ok": true, "id": 55012, "delivered_at": "2026-11-11 18:20:03" }
+```
 
 ### e-StaqOn Verify  -  push approval for sensitive actions
 
@@ -131,6 +185,26 @@ This requires an approved, **unexpired** consent link for the member (stricter t
 - **After a successful cancel**, `check` reports `reason: "cancelled"` from then on, and the member's open prompt closes immediately on web, app, and push  -  they can no longer approve it.
 - **A cancel never counts toward, or resets, the 5-per-minute Start limit** for that member.
 - **Polling `check` is rate-limited same as everything else.** At one call a second you'll burn through the 30/min session budget in under 30 seconds. Space out your polling, use `--wait` to long-poll (above), or set up the `verify.resolved` webhook (below) and stop polling altogether.
+
+**Example  -  `verify start`:**
+```json
+{ "ok": true, "verification_id": "4279a9f9-b5b5-42a3-acff-2395aac2d6bb", "expires_at": "2026-11-11T19:14:03+05:30" }
+```
+
+**Example  -  `verify check`, still pending:**
+```json
+{ "ok": true, "verified": false, "reason": "pending" }
+```
+
+**Example  -  `verify check`, approved:**
+```json
+{ "ok": true, "verified": true }
+```
+
+**Example  -  `verify cancel`:**
+```json
+{ "ok": true, "cancelled": true, "status": "cancelled", "already": false }
+```
 
 #### `verify.resolved` webhook  -  skip polling entirely
 
@@ -163,6 +237,34 @@ staqon ad status --request-id 812
 
 Requires an **ad-purpose** API key on the target team (separate from your messaging key  -  created in Workspace Settings → API → Ad API). `ad send` is asynchronous: it queues the send and returns right away; poll `ad status` for progress and final counts. `upload-image` enforces JPEG/PNG/WebP under 300KB; images are centre-cropped to 16:9 server-side.
 
+**Example  -  `ad upload-image`:**
+```json
+{ "ok": true, "image_url": "https://cdn.staqon.one/ad/9c21.../banner.jpg", "width": 1200, "height": 675, "bytes": 184302, "attachment_id": 5521 }
+```
+
+**Example  -  `ad send`** (HTTP 202, queued):
+```json
+{ "ok": true, "ad_request_id": 8341, "external_ref": "campaign-001", "status": "queued" }
+```
+
+**Example  -  `ad status`:**
+```json
+{
+  "ok": true,
+  "ad_request_id": 8341,
+  "external_ref": "campaign-001",
+  "status": "completed",
+  "total_targets": 42,
+  "delivered": 40,
+  "failed": 2,
+  "skipped": 0,
+  "created_at": "2026-11-11 10:00:02",
+  "started_at": "2026-11-11 10:00:03",
+  "finished_at": "2026-11-11 10:00:19",
+  "duration_ms": 16210
+}
+```
+
 ### Escalation matters
 
 ```bash
@@ -172,6 +274,40 @@ staqon escalation get --matter-id 42
 ```
 
 `--due-date` must be strictly after today. `--priority` is one of `low`, `medium`, `high`, `critical` (default `medium`). `list`/`get` only ever show matters your key can see  -  scoped to "the target member is in this key's team," not by any other workspace linkage.
+
+**Example  -  `escalation raise`:**
+```json
+{ "ok": true, "matter_id": 412 }
+```
+
+**Example  -  `escalation get`:**
+```json
+{
+  "ok": true,
+  "matter": {
+    "matter_id": 412,
+    "title": "Repeated no-shows",
+    "description": "...",
+    "priority": "high",
+    "status": "open",
+    "due_date": "2026-12-01",
+    "created_at": "2026-11-11 09:40:00"
+  }
+}
+```
+
+**Example  -  `escalation list`:**
+```json
+{
+  "ok": true,
+  "matters": [
+    { "matter_id": 412, "title": "Repeated no-shows", "priority": "high", "status": "open", "due_date": "2026-12-01" }
+  ],
+  "total": 1,
+  "page": 1,
+  "pages": 1
+}
+```
 
 ### Link  -  invite a customer, list who's linked
 
@@ -187,6 +323,28 @@ Link has no `--team`  -  it's one connection per **workspace**, not per team, an
 - Requires Link to be set up for your workspace (Workspace Settings → Link)  -  if it isn't, you'll get a 409 `no_link_key`.
 - Your Link signing secret never leaves StaqOn's server: the CLI calls this through the same paired session as every other command, and StaqOn signs the request on your workspace's behalf.
 
+**Example  -  `link invite`:**
+```json
+{
+  "ok": true,
+  "token": "lnktok_7f3a9c2e1b8d4f0a9c6e2b1d7a4f8e3c",
+  "short_code": "482913",
+  "expires_in": 86400,
+  "confirm_url": "https://staqon.one/link/confirm?t=lnktok_7f3a9c2e1b8d4f0a9c6e2b1d7a4f8e3c"
+}
+```
+
+**Example  -  `link list`:**
+```json
+{
+  "ok": true,
+  "links": [
+    { "email": "jane@example.com", "username": "jane.doe", "linked_at": "2026-11-05 11:20:00" }
+  ],
+  "pagination": { "limit": 50, "offset": 0, "total": 1 }
+}
+```
+
 ### Status and webhook health
 
 ```bash
@@ -197,6 +355,31 @@ staqon webhooks [--internal]
 `status` reports member counts and your current rate-limit usage for the External (default) or Internal surface. `webhooks` reports each registered webhook's health  -  a webhook that fails 10 consecutive deliveries over 6+ hours auto-disables, and this is the only way to notice that happened short of your own monitoring.
 
 **`webhooks` is read-only  -  there is no CLI or API command to create, edit, or re-enable one.** Webhooks are created and managed only from the dashboard (Workspace Settings → API), and a disabled webhook **cannot be re-enabled**, by design: the fix is to create a new webhook (a fresh URL/secret pair) from the dashboard, not to flip the old one back on. An empty result from `staqon webhooks` just means your team hasn't created a webhook yet  -  that's a dashboard step, not something this command can do for you.
+
+**Example  -  `status`:**
+```json
+{
+  "ok": true,
+  "workspace": "Partners Channels",
+  "team": "partners-channels",
+  "team_type": "external",
+  "total_members": 1086,
+  "active_members": 1080,
+  "api_key_usage": { "used": 412, "limit": 3000 },
+  "rate_limit": 30,
+  "rate_remaining": 28
+}
+```
+
+**Example  -  `webhooks`:**
+```json
+{
+  "ok": true,
+  "webhooks": [
+    { "url": "https://example.com/hooks/staqon", "status": "active", "last_delivery_at": "2026-11-11 18:51:39", "consecutive_failures": 0 }
+  ]
+}
+```
 
 ## Scripting and unattended use
 
