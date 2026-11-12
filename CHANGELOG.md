@@ -2,6 +2,12 @@
 
 All notable changes to `@staqon.one/cli` are documented here. Versions follow `MAJOR.MINOR.PATCH`. From 1.0.0 onward, a MINOR release never breaks an existing command or flag  -  only a MAJOR (2.0.0+) release would.
 
+
+## 2.0.1
+
+- **Fixed a build-breaking bug**: `src/card.ts` was missing from the published source entirely, so `npm run build` failed on a fresh clone, and `messages comment`, `internal-message`, and `verify start` (all three depend on `--card`/`--card-file`) couldn't run. Restored, and the two call sites that had stopped `await`-ing it are fixed too.
+- **Repo hygiene, no behavior change**: added `LICENSE`, `SECURITY.md` (responsible-disclosure process), `CONTRIBUTING.md`, GitHub issue/PR templates, and a CI workflow that builds on every push/PR. Added a `files` field to `package.json` so `npm publish` ships only `dist/` and the docs, not raw TypeScript source.
+
 ## 2.0.0
 
 A major release, but **not a breaking one** for anyone already using 1.0.0 -- every command, flag, and exit code from 1.0.0 keeps working exactly as before. It's a MAJOR bump because this release adds a new way to call the proxy (direct REST, no CLI required) that changes how non-Node integrations are expected to talk to StaqOn, which is a big enough shift in surface area to mark with a major version rather than a MINOR.
