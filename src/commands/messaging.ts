@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { proxy, MAX_LIST_LIMIT } from '../api/client.js';
 import { fail, printJson } from '../output.js';
+import { cardOpt, parseCardOpt } from '../card.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -14,13 +15,14 @@ export function registerMessagingCommands(program: Command): void {
       .command('send')
       .description('Send a message into a member\'s thread, as the workspace owner')
       .requiredOption('--email <email>')
-      .requiredOption('--message <text>', 'max 60000 characters'),
-  ).action(async (opts: { email: string; message: string; team?: string }) => {
+      .requiredOption('--message <text>', 'max 60000 characters')
+      .option('--dry-run', 'validate everything and report who/where this would send to, without sending anything'),
+  ).action(async (opts: { email: string; message: string; team?: string; dryRun?: boolean }) => {
     try {
       const body = await proxy('external/message', {
         method: 'POST',
         team: opts.team,
-        json: { email: opts.email, message: opts.message },
+        json: { email: opts.email, message: opts.message, dry_run: opts.dryRun || undefined },
       });
       printJson(body);
     } catch (e) {
@@ -29,29 +31,43 @@ export function registerMessagingCommands(program: Command): void {
   });
 
   teamOpt(
-    messages
-      .command('comment')
-      .description(
-        'Post a comment into a member\'s thread, attributed to the workspace (no consent link needed — writing in is the workspace\'s own authority)',
-      )
-      .requiredOption('--username <username>')
-      .requiredOption('--comment <text>', 'max 60000 characters')
-      .option(
-        '--external-ref <ref>',
-        'idempotency key, max 190 chars — scoped to the WHOLE WORKSPACE, not per recipient; reusing it for a different recipient silently does not reach them',
-      ),
-  ).action(async (opts: { username: string; comment: string; externalRef?: string; team?: string }) => {
-    try {
-      const body = await proxy('external/comment', {
-        method: 'POST',
-        team: opts.team,
-        json: { username: opts.username, comment: opts.comment, external_ref: opts.externalRef },
-      });
-      printJson(body);
-    } catch (e) {
-      fail(e);
-    }
-  });
+    cardOpt(
+      messages
+        .command('comment')
+        .description(
+          'Post a comment into a member\'s thread, attributed to the workspace (no consent link needed — writing in is the workspace\'s own authority)',
+        )
+        .requiredOption('--username <username>')
+        .requiredOption('--comment <text>', 'max 60000 characters')
+        .option(
+          '--external-ref <ref>',
+          'idempotency key, max 190 chars — scoped to the WHOLE WORKSPACE, not per recipient; reusing it for a different recipient silently does not reach them',
+        )
+        .option('--dry-run', 'validate everything and report who/where this would post to, without posting anything'),
+    ),
+  ).action(
+    async (opts: {
+      username: string;
+      comment: string;
+      externalRef?: string;
+      card?: string;
+      cardFile?: string;
+      team?: string;
+      dryRun?: boolean;
+    }) => {
+      try {
+        const card = parseCardOpt(opts);
+        const body = await proxy('external/comment', {
+          method: 'POST',
+          team: opts.team,
+          json: { username: opts.username, comment: opts.comment, external_ref: opts.externalRef, card, dry_run: opts.dryRun || undefined },
+        });
+        printJson(body);
+      } catch (e) {
+        fail(e);
+      }
+    },
+  );
 
   teamOpt(
     messages
@@ -78,14 +94,17 @@ export function registerMessagingCommands(program: Command): void {
   // Internal surface: one-way feed push, NOT a conversation (no replies/reactions/attachments).
   // Requires an APPROVED link_type='internal' consent row (stricter than External's write path).
   teamOpt(
-    program
-      .command('internal-message')
-      .description('Push a one-way message into a member\'s API Messages feed (internal surface — requires member consent)')
-      .requiredOption('--username <username>')
-      .requiredOption('--message <text>', 'max 60000 characters')
-      .option('--title <text>', 'max 200 characters')
-      .option('--link-url <url>', 'must be http(s)')
-      .option('--external-ref <ref>', 'idempotency key, max 190 chars — scoped per API key, not per recipient'),
+    cardOpt(
+      program
+        .command('internal-message')
+        .description('Push a one-way message into a member\'s API Messages feed (internal surface — requires member consent)')
+        .requiredOption('--username <username>')
+        .requiredOption('--message <text>', 'max 60000 characters')
+        .option('--title <text>', 'max 200 characters')
+        .option('--link-url <url>', 'must be http(s)')
+        .option('--external-ref <ref>', 'idempotency key, max 190 chars — scoped per API key, not per recipient')
+        .option('--dry-run', 'validate everything and report who this would deliver to, without delivering anything'),
+    ),
   ).action(
     async (opts: {
       username: string;
@@ -93,9 +112,13 @@ export function registerMessagingCommands(program: Command): void {
       title?: string;
       linkUrl?: string;
       externalRef?: string;
+      card?: string;
+      cardFile?: string;
       team?: string;
+      dryRun?: boolean;
     }) => {
       try {
+        const card = parseCardOpt(opts);
         const body = await proxy('internal/message', {
           method: 'POST',
           team: opts.team,
@@ -105,6 +128,8 @@ export function registerMessagingCommands(program: Command): void {
             title: opts.title,
             link_url: opts.linkUrl,
             external_ref: opts.externalRef,
+            card,
+            dry_run: opts.dryRun || undefined,
           },
         });
         printJson(body);

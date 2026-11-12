@@ -49,7 +49,8 @@ export function registerAdCommands(program: Command): void {
       .requiredOption('--button-label <text>', '1-30 characters')
       .requiredOption('--button-url <url>', 'must start with https://')
       .option('--image-url <url>', 'from `ad upload-image`, same workspace+team')
-      .option('--external-ref <ref>', 'idempotency key — repeating it returns the original send\'s counts, sends nothing twice'),
+      .option('--external-ref <ref>', 'idempotency key — repeating it returns the original send\'s counts, sends nothing twice')
+      .option('--dry-run', 'validate everything (card, image ownership, external_ref dedup) and report the real current target-thread count, without queuing anything or using up external_ref'),
   ).action(
     async (opts: {
       body: string;
@@ -58,6 +59,7 @@ export function registerAdCommands(program: Command): void {
       imageUrl?: string;
       externalRef?: string;
       team?: string;
+      dryRun?: boolean;
     }) => {
       try {
         const body = await proxy('external/ad', {
@@ -69,6 +71,7 @@ export function registerAdCommands(program: Command): void {
             button_url: opts.buttonUrl,
             image_url: opts.imageUrl,
             external_ref: opts.externalRef,
+            dry_run: opts.dryRun || undefined,
           },
         });
         printJson(body);

@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { proxy } from '../api/client.js';
 import { fail, printJson } from '../output.js';
+import { cardOpt, parseCardOpt } from '../card.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -10,16 +11,32 @@ export function registerVerifyCommands(program: Command): void {
   const verify = program.command('verify').description('e-StaqOn Verify — ask a member to push-approve a sensitive action');
 
   teamOpt(
-    verify
-      .command('start')
-      .description('Ask a member to confirm a sensitive action (push approval) — requires an approved, unexpired consent link')
-      .requiredOption('--username <username>')
-      .requiredOption('--action <text>', 'short label, max 100 chars')
-      .requiredOption('--context <text>', 'what the member is approving — shown to them verbatim, max 500 chars')
-      .option('--ttl <seconds>', 'how long the request stays open, 30-180 (default 30; out-of-range is clamped, not rejected)'),
+    cardOpt(
+      verify
+        .command('start')
+        .description('Ask a member to confirm a sensitive action (push approval) — requires an approved, unexpired consent link')
+        .requiredOption('--username <username>')
+        .requiredOption('--action <text>', 'short label, max 100 chars')
+        .requiredOption('--context <text>', 'what the member is approving — shown to them verbatim, max 500 chars')
+        .option('--ttl <seconds>', 'how long the request stays open, 30-180 (default 30; out-of-range is clamped, not rejected)')
+        .option('--dry-run', 'validate everything (member, consent link, card, rate limit) and report the real attempts-used count, without asking the member or using up a rate-limit attempt'),
+    ),
   ).action(
-    async (opts: { username: string; action: string; context: string; ttl?: string; team?: string }) => {
+    async (opts: {
+      username: string;
+      action: string;
+      context: string;
+      ttl?: string;
+      card?: string;
+      cardFile?: string;
+      team?: string;
+      dryRun?: boolean;
+    }) => {
       try {
+        const card = parseCardOpt(opts);
+        if (card !== undefined && typeof card === 'object' && card !== null && 'button' in card) {
+          fail(new Error('card.button is not allowed for verification requests (the server rejects it with 400)'));
+        }
         const body = await proxy('external/staqon-verify-start', {
           method: 'POST',
           team: opts.team,
@@ -28,6 +45,8 @@ export function registerVerifyCommands(program: Command): void {
             action: opts.action,
             context: opts.context,
             ttl_seconds: opts.ttl ? Number(opts.ttl) : undefined,
+            card,
+            dry_run: opts.dryRun || undefined,
           },
         });
         printJson(body);
