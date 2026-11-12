@@ -163,7 +163,7 @@ Every command below names the exact Swagger/OpenAPI path it calls (`GET`/`POST` 
 | `members teams` | `GET /external/member-teams.php` |
 | `internal-members` | `GET /internal/members.php` |
 | `messages send` | `POST /external/message.php` |
-| `messages comment` | `POST /external/message.php` |
+| `messages comment` | `POST /external/comment.php` |
 | `messages read` | `GET /external/messages.php` |
 | `internal-message` | `POST /internal/message.php` |
 | `verify start` | `POST /external/staqon-verify-start.php` |
@@ -177,7 +177,14 @@ Every command below names the exact Swagger/OpenAPI path it calls (`GET`/`POST` 
 | `link invite` | `POST /api/link-invite.php` |
 | `link list` | `POST /api/link-list.php` |
 | `status` | `GET /external/status.php` (or `GET /internal/status.php` with `--internal`) |
-| `webhooks` | `GET /external/webhook-status.php` (or `GET /internal/webhook-status.php` with `--internal`) |
+| `webhook status` | `GET /external/webhook-status.php` |
+| `webhook status --purpose ad` | `GET /external/ad-webhook-status.php`\* |
+| `webhook set-url` / `webhook rotate` | `POST /external/webhook-configure.php` |
+| `webhook set-url --purpose ad` / `webhook rotate --purpose ad` | `POST /external/ad-webhook-configure.php`\* |
+| `internal-webhook status` | `GET /internal/webhook-status.php` |
+| `internal-webhook set-url` / `internal-webhook rotate` | `POST /internal/webhook-configure.php` |
+
+\*There's no separate `ad-webhook-status.php`/`ad-webhook-configure.php` file on the server &mdash; both names route through the proxy to the exact same `webhook-status.php`/`webhook-configure.php` as the message-purpose row above (see [the full `_ep` list](#calling-the-proxy-directly----no-node-required)); the split exists only because the CLI proxy resolves one fixed key purpose per `_ep` name, so Ad-purpose keys need their own name to be reachable at all.
 
 The CLI never calls these with a raw API key &mdash; see [How calls are authorized](#how-calls-are-authorized) &mdash; but every request body, response shape, and error code is identical to calling that same endpoint directly.
 
@@ -238,13 +245,14 @@ Same shape as `members list`, but for Internal teams: no guest-role filter, and 
 
 ```bash
 staqon messages send --email jane@example.com --message "Hello!"
-staqon messages comment --username jane.doe --comment "Thanks for your order" [--external-ref my-idempotency-key]
+staqon messages comment --username jane.doe --comment "Thanks for your order" [--external-ref my-idempotency-key] [--card '{...}' | --card-file card.json]
 staqon messages read --username jane.doe [--limit 50] [--before 1000 | --after 2000]
 ```
 
 - `send` and `comment` both write into a member's thread as the workspace. `send` uses the member's email; `comment` uses their StaqOn username and supports an `--external-ref` so a retried call with the same ref is idempotent  -  but **the uniqueness check is workspace-wide, not per recipient**: reusing the same ref for a different recipient will silently fail to reach them (you'll get a 409 back, not a second delivery).
 - `read` requires an **approved consent link** for that member  -  you'll get a 403 if the member hasn't linked. `send`/`comment` don't need that link (writing in is the workspace's own authority).
 - `--before`/`--after` page through history; use one or the other, not both.
+- **`comment` (not `send`) can attach a card** via `--card` (inline JSON) or `--card-file` (a JSON file, useful when shell-quoting nested JSON gets painful  -  **especially in PowerShell**, where inline `--card '{"...":"..."}'` can silently mangle the quotes depending on how the string is passed; `--card-file` sidesteps that entirely). The CLI does not re-validate the card's contents  -  it just checks the JSON parses as an object, then forwards it as-is, so the server's own specific error comes back unchanged (e.g. `"card.header_color must be one of the 10 allowed hex codes"`). See [Cards](#cards) below for the full schema and a worked example.
 
 **Example  -  `messages send`:**
 ```json
@@ -265,13 +273,124 @@ staqon messages read --username jane.doe [--limit 50] [--before 1000 | --after 2
 }
 ```
 
+### Cards
+
+`messages comment`, `internal-message`, and `verify start` can all attach a structured **card**  -  a small presentation object (header color, title, body, optional icon/sub-body/table/button) shown alongside the plain-text message/comment/context, rendered on web and Android (table support on iOS is planned but not shipped yet; put anything essential in the required `body` text as a fallback).
+
+Pass it as `--card '<json>'` (inline) or `--card-file <path>` (a JSON file)  -  **prefer `--card-file` from PowerShell**, where inline JSON with embedded quotes is easy to mangle depending on how the shell passes it through; a file sidesteps that entirely. The CLI does not re-validate the card's fields against the server's own rules  -  it only checks the JSON parses as a plain object, then forwards it as-is, so a rejected card comes back with the server's own specific error (e.g. `"card.header_color must be one of the 10 allowed hex codes"`, `"card.body is too long (max 2000 chars)"`), not a generic one.
+
+**Fields** (required: `header_color`, `title`, `body`):
+
+| Field | Type | Notes |
+|---|---|---|
+| `header_color` | string | Exactly one of: `#1F7A54` `#059669` `#D97706` `#DC2626` `#2563EB` `#4B5563` `#7C3AED` `#0D9488` `#DB2777` `#0891B2` |
+| `title` | string | Max 200 chars |
+| `body` | string | Max 2000 chars. Supports a small markdown subset rendered client-side: `**bold**`, `*italic*`, and `"- "` lines grouped into a real bullet list |
+| `sub_body` | string, optional | Max 2000 chars, same markdown subset |
+| `meta_title` | string, optional | Max 60 chars |
+| `icon` | string, optional | One of: `check` `warning` `document` `security` `wallet` `person` `alert` `info` `reassign` `pending` |
+| `button` | object, optional | `{label, url, color?}`  -  one button max. `url` must be `https://`, `tel:`, or `mailto:`. **Not allowed on `verify start`** (400 if present; the CLI catches this before sending). |
+| `table` | object, optional | `{columns: [{label, align?}], rows: [[...]]}`  -  2-6 columns, up to 500 rows, 60,000 chars total. Keep to 4 columns or fewer for phone screens. |
+
+**Example  -  a card file** (`card.json`):
+```json
+{
+  "header_color": "#1F7A54",
+  "title": "Order shipped",
+  "body": "Your order **#4821** is on its way.\n- Carrier: BlueDart\n- ETA: 2 business days",
+  "icon": "check",
+  "button": { "label": "Track order", "url": "https://example.com/track/4821" }
+}
+```
+
+```bash
+staqon messages comment --username jane.doe --comment "Here's an update" --card-file card.json
+```
+
+```json
+{ "ok": true, "message_id": 167368, "conversation_id": 1092001326, "sent_at": "2026-11-12 10:02:43" }
+```
+
+### Webhooks
+
+Check or configure the outbound webhook for a Messaging key (`verify.resolved`) or an Ad key (`ad.completed`). This is separate from the workspace's **Link** webhook (member/escalation events, one per workspace, set up in Workspace Settings → Link) -- `webhook status` reports both where relevant, but `set-url`/`rotate` only ever touch the calling key's own Verify/Ad webhook.
+
+```bash
+staqon webhook status --team partners-channels
+```
+
+```json
+{
+  "ok": true,
+  "webhooks": [
+    {
+      "source": "link",
+      "url": "https://vistarkriya.com/api/staqon/link-verify.php",
+      "events": ["member.joined", "member.left", "member.message", "member.removed", "escalation.created", "escalation.resolved", "link.status_changed"],
+      "is_active": true,
+      "failure_count": 0,
+      "last_triggered_at": "2026-11-12 10:42:05",
+      "created_at": "2026-09-04 16:01:33"
+    },
+    {
+      "source": "verify",
+      "url": "https://example.com/staqon/verify-resolved",
+      "events": ["verify.resolved"],
+      "is_active": true,
+      "failure_count": null,
+      "last_triggered_at": null,
+      "created_at": "2026-09-04 16:18:11"
+    }
+  ]
+}
+```
+
+`failure_count`/`last_triggered_at` are `null` for `source: "verify"`/`"ad"` -- unlike the Link webhook, these don't auto-disable on repeated failures (see [Troubleshooting](#troubleshooting) if yours seems to have stopped firing; it hasn't been turned off, check your receiver).
+
+```bash
+# set or change the URL -- first time ever set on this key, a secret is generated and shown once
+staqon webhook set-url --team partners-channels --url "https://example.com/staqon/verify-resolved"
+# -> {"ok":true,"url":"https://example.com/staqon/verify-resolved","secret":"whsec_..."}   secret shown ONCE
+
+# changing the URL again keeps the existing secret (secret comes back null)
+staqon webhook set-url --team partners-channels --url "https://example.com/staqon/verify-resolved-v2"
+# -> {"ok":true,"url":"...-v2","secret":null}
+
+# rotate the secret without changing the URL
+staqon webhook rotate --team partners-channels
+# -> {"ok":true,"secret":"whsec_..."}   new secret shown ONCE, takes effect immediately
+
+# remove the webhook entirely (--url "" does NOT work -- Commander treats an empty value as no value; use --clear)
+staqon webhook set-url --team partners-channels --clear
+# -> {"ok":true,"removed":true}
+```
+
+By default these three commands act on a **Messaging** key's Verify webhook. Pass `--purpose ad` to act on an **Ad** key's completion webhook instead -- same three commands, same shapes:
+
+```bash
+staqon webhook status --team partners-channels --purpose ad
+staqon webhook set-url --team partners-channels --purpose ad --url "https://example.com/staqon/ad-complete"
+staqon webhook rotate --team partners-channels --purpose ad
+```
+
+The webhook URL must be `https://` (or `http://`) and resolve to a public address -- loopback, private, link-local and reserved ranges (including the `169.254.169.254` cloud-metadata address) are rejected with `"Webhook URL must be a public address."`, the same SSRF guard the dashboard's own webhook settings use.
+
+For an **Internal** key, the equivalent commands are `internal-webhook status`/`set-url`/`rotate` -- always the Verify webhook (Internal never issues Ad-purpose keys), so there's no `--purpose` flag:
+
+```bash
+staqon internal-webhook status --team sales
+staqon internal-webhook set-url --team sales --url "https://example.com/staqon/internal-verify"
+staqon internal-webhook rotate --team sales
+staqon internal-webhook set-url --team sales --clear
+```
+
 ### Internal messaging
 
 ```bash
-staqon internal-message --username jane.doe --message "Your ticket was updated" [--title "Ticket #123"] [--link-url https://...] [--external-ref ref]
+staqon internal-message --username jane.doe --message "Your ticket was updated" [--title "Ticket #123"] [--link-url https://...] [--external-ref ref] [--card '{...}' | --card-file card.json]
 ```
 
-A one-way push into the member's API Messages feed  -  not a conversation (no replies, reactions, or attachments). Requires the member's explicit, separate consent for *internal* messages: a 403 means they haven't opted in; a 404 with "Internal Link is not set up" means the workspace hasn't configured that gate at all yet.
+A one-way push into the member's API Messages feed  -  not a conversation (no replies, reactions, or attachments). Requires the member's explicit, separate consent for *internal* messages: a 403 means they haven't opted in; a 404 with "Internal Link is not set up" means the workspace hasn't configured that gate at all yet. Accepts `--card`/`--card-file` the same way as `messages comment`  -  see [Cards](#cards).
 
 **Example:**
 ```json
@@ -281,12 +400,14 @@ A one-way push into the member's API Messages feed  -  not a conversation (no re
 ### e-StaqOn Verify  -  push approval for sensitive actions
 
 ```bash
-staqon verify start --username jane.doe --action "Withdraw $500" --context "Approve withdrawal of $500 to your linked bank account?" [--ttl 60]
+staqon verify start --username jane.doe --action "Withdraw $500" --context "Approve withdrawal of $500 to your linked bank account?" [--ttl 60] [--card '{...}' | --card-file card.json]
 staqon verify check --id <verification_id> [--wait <seconds>]
 staqon verify cancel --id <verification_id>
 ```
 
 `start` pushes an approval prompt to the member's StaqOn app and returns a `verification_id`. Poll `check` until you get `verified: true` (approved), or `verified: false` with a `reason` of `pending`, `declined`, `timeout`, or `cancelled`. `ttl` is 30-180 seconds (default 30; out-of-range values are clamped, not rejected). `cancel` withdraws a still-pending request  -  if the member already answered, you'll get a 409 and their answer stands, not your cancellation.
+
+`start` also accepts `--card`/`--card-file` to show a presentation card on the member's approval screen, below `context` (which stays the authoritative text either way  -  the card is presentation only). **`card.button` is rejected here with a 400**  -  the CLI checks for this client-side before sending, so you get the error instantly instead of waiting on a round-trip. See [Cards](#cards).
 
 **`check` supports long-polling via `--wait <seconds>`** (0-25, default 0  -  instant return, same as before). While the request is still `pending`, the CLI holds the connection open and the server re-checks every 500ms, returning as soon as it resolves or the window elapses  -  this cuts polling volume roughly 10x versus calling `check` in a tight loop. See also the `verify.resolved` webhook below for a poll-free alternative that needs no polling at all.
 
@@ -536,6 +657,82 @@ cd /home/you
 Then have your PHP application read the JSON file the worker wrote (`staqon-link-list.json`) instead of shelling out to the CLI directly. This also sidesteps most hosts' `exec()`/`shell_exec()` restrictions on PHP itself, since cron runs independently of the web server.
 
 Your paired CLI session renews itself on every call (see [Sign in](#sign-in)), so once `staqon login` is approved, a cron job calling it every few minutes never needs to re-authenticate.
+
+## Calling the proxy directly  -  no Node required
+
+Everything this CLI does goes through one HTTP endpoint on StaqOn's own server: `POST|GET https://staqon.one/api/v1/cli-proxy.php?_ep=<name>`, authenticated with a plain `Authorization: Bearer stq_cli_...` header. That endpoint is ordinary REST  -  this CLI is a thin wrapper around it, not a special protocol. If your integration is PHP, Python, Go, a shell script, or anything else that isn't Node, you can call it directly and skip this package entirely, except for the one-time pairing step.
+
+**Getting a token without Node.** Pairing itself is also just REST  -  two calls to `api/cli-pair.php`, the same ones this CLI's own `login` command makes:
+
+```bash
+# 1) ask the server for a pairing code (no auth needed for this call)
+curl -s -X POST "https://staqon.one/api/cli-pair.php?action=code_request" \
+  -H "Content-Type: application/json" \
+  -d '{"device_label":"my-php-server","os":"linux","cli_version":"direct-rest"}'
+# -> {"ok":true,"pair_id":"...","code":"ABCD-1234","verification_url":"https://staqon.one/cli?code=ABCD-1234","poll_secret":"...","expires_in":600,"interval":3}
+```
+
+Open `verification_url` (or go to `/cli` and type the code) while signed in as the workspace owner, pick the workspace, and approve  -  exactly the same approval screen `staqon login` sends you to. Then poll for the token:
+
+```bash
+# 2) poll every few seconds using the SAME pair_id + poll_secret from step 1
+curl -s -X POST "https://staqon.one/api/cli-pair.php?action=poll" \
+  -H "Content-Type: application/json" \
+  -d '{"pair_id":"...","poll_secret":"..."}'
+# while pending: {"ok":true,"status":"pending"}
+# once approved: {"ok":true,"status":"approved","token":"stq_cli_...","workspace":{...},"expires_at":"..."}
+```
+
+The token (`stq_cli_` followed by 64 hex characters) is shown exactly once, at that moment  -  store it yourself (an env var, a secrets file with restricted permissions); StaqOn never shows it again and this CLI itself never holds or displays a raw API key either, for the same reason. It auto-renews on every proxied call (sliding expiry, capped at an absolute maximum  -  see [Sign in](#sign-in)), so a long-running non-Node integration polling the proxy regularly never needs to re-pair.
+
+**Shortcut, if you already have Node available once:** run `staqon login` interactively, approve it, then read the token straight out of wherever this CLI stores it on that machine and copy it into your non-Node environment. Functionally identical to the curl flow above  -  same token shape, same server-side pairing record  -  just faster if Node happens to already be installed somewhere you can run it once.
+
+**Calling an endpoint.** Every call needs the bearer token; add `X-StaqOn-Team: <team id or slug>` only when the workspace has more than one eligible team for that endpoint (the response says so if you omit it and it's needed  -  see [How calls are authorized](#how-calls-are-authorized)):
+
+```bash
+curl -s -X POST "https://staqon.one/api/v1/cli-proxy.php?_ep=external/staqon-verify-start" \
+  -H "Authorization: Bearer stq_cli_..." \
+  -H "X-StaqOn-Team: partners-channels" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"theirusername","action":"payout.approve","context":"Approve payout of Rs 12,000?","ttl_seconds":60}'
+```
+
+The request body and response shape for each `_ep` are **identical** to the matching command's own documentation elsewhere in this README (e.g. `external/staqon-verify-start` is exactly [`verify start`](#e-staqon-verify)'s payload)  -  nothing is reformatted or simplified for the CLI, so you can read any command's section above as the direct-REST reference too.
+
+**The full list of `_ep` names** (also returned, grouped by surface/purpose, from `GET|POST .../cli-proxy.php?_ep=whoami`):
+
+| `_ep` | What it does |
+|---|---|
+| `external/message` | [`messages send`](#messaging-external-team) |
+| `external/messages` | [`messages read`](#messaging-external-team) |
+| `external/comment` | [`messages comment`](#messaging-external-team) |
+| `external/members` | [`members list`](#members-external-team) |
+| `external/member` | member detail |
+| `external/add-member` | [`members add`](#members-external-team) |
+| `external/remove-member` | [`members remove`](#members-external-team) |
+| `external/member-teams` | member's teams |
+| `external/ad` | [`ad send`](#advertisement-api) |
+| `external/ad-image` | [`ad upload-image`](#advertisement-api) |
+| `external/ad-status` | [`ad status`](#advertisement-api) |
+| `external/staqon-verify-start` | [`verify start`](#e-staqon-verify) |
+| `external/staqon-verify-check` | [`verify check`](#e-staqon-verify) |
+| `external/staqon-verify-cancel` | [`verify cancel`](#e-staqon-verify) |
+| `external/escalation` | [`escalation raise`](#escalation-matters) |
+| `external/escalations` | escalation list |
+| `external/webhook-status` | [`webhook status`](#cards) (message-purpose key) |
+| `external/ad-webhook-status` | `webhook status --purpose ad` (ad-purpose key) |
+| `external/webhook-configure` | [`webhook set-url`/`rotate`](#cards) (message-purpose key) |
+| `external/ad-webhook-configure` | `webhook set-url`/`rotate --purpose ad` (ad-purpose key) |
+| `external/status` | [`status`](#status-and-webhook-health) |
+| `internal/message` | [`internal-message`](#internal-messaging) |
+| `internal/members` | internal member list |
+| `internal/webhook-status` | [`internal-webhook status`](#cards) |
+| `internal/webhook-configure` | [`internal-webhook set-url`/`rotate`](#cards) |
+| `internal/status` | internal status |
+| `link/invite` | [`link invite`](#link) |
+| `link/list` | [`link list`](#link) |
+
+`link/invite` and `link/list` are the one exception to "identical to the matching endpoint's docs": they're a separate auth mechanism entirely (the workspace's single Link key, HMAC-signed server-side  -  no API key or team selection involved), so there's no separate `link-invite.php`/`link-list.php` to call directly outside the proxy; the proxy *is* the only way to reach them, Node or not.
 
 ## A note on API keys and this CLI
 
