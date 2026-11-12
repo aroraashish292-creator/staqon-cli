@@ -4,6 +4,90 @@ A command-line tool for a StaqOn workspace owner  -  send messages, post ads, ru
 
 The CLI never holds, sees, or asks you to paste a raw API key. Instead it uses a device-pairing flow: you approve each computer once from your StaqOn dashboard, and after that every call goes through StaqOn's own proxy on your workspace's behalf. Full technical details for engineers who want them are at [`/developer`](https://staqon.one/developer) (the live, interactive Swagger spec)  -  this README covers the CLI's own commands.
 
+## Start here  -  five minutes, one real integration
+
+This walks through everything end-to-end: install, pair, invite a real customer to connect, and send them a message  -  the same four steps any real integration needs, in the order you'll actually do them. Each step below links down to its full reference section if you want more detail later; for now just follow along.
+
+**1. Install the CLI.**
+
+```bash
+npm install -g @staqon.one/cli
+```
+
+Requires Node 18+. ([More detail &darr;](#install))
+
+**2. Pair it to your workspace.**
+
+```bash
+staqon login
+```
+
+This prints an 8-character code and a link. Before this works, the workspace owner needs to turn on "Allow CLI access" once, in **Workspace Settings → API → CLI access**  -  if you skip this, `login` will tell you so. Open the printed link (or go to `/cli` and type the code) while signed in to StaqOn, pick the workspace, and approve. ([More detail &darr;](#sign-in))
+
+**3. Confirm you're paired.**
+
+```bash
+staqon whoami
+```
+
+```json
+{
+  "ok": true,
+  "workspace": "Partners Channels",
+  "teams": [{ "team_id": 3, "team_slug": "partners-channels" }],
+  "rate_limit": { "used": 0, "limit_per_min": 30, "limit_per_day": 3000 },
+  "session_expires": "2027-02-11T00:00:00Z"
+}
+```
+
+If `teams` shows more than one entry, every command from here on needs `--team <id-or-slug>` to say which one you mean.
+
+**4. Connect a real customer, and message them.**
+
+Before you can message anyone, that person has to approve a StaqOn Link connection with your workspace  -  this is their consent, not yours, and it's the one step in this walkthrough you can't fully automate end-to-end without a real human on the other side:
+
+```bash
+staqon link invite --email jane@example.com --external-ref first-customer
+```
+
+```json
+{
+  "ok": true,
+  "token": "lnktok_7f3a9c2e1b8d4f0a9c6e2b1d7a4f8e3c",
+  "short_code": "482913",
+  "expires_in": 86400,
+  "confirm_url": "https://staqon.one/link/confirm?t=lnktok_7f3a9c2e1b8d4f0a9c6e2b1d7a4f8e3c"
+}
+```
+
+Send that `confirm_url` (or just the `short_code`) to Jane yourself  -  email, SMS, your own app, whatever you'd normally use. StaqOn doesn't deliver it for you. Once she opens it and approves, confirm the connection went through:
+
+```bash
+staqon link list
+```
+
+```json
+{
+  "ok": true,
+  "links": [{ "email": "jane@example.com", "username": "jane.doe", "linked_at": "2026-11-12 09:40:00" }],
+  "pagination": { "limit": 50, "offset": 0, "total": 1 }
+}
+```
+
+Now send her a real message  -  this one doesn't need the Link connection at all (writing in is always the workspace's own authority; only *reading her replies back* needs her consent):
+
+```bash
+staqon messages send --email jane@example.com --message "Hi Jane, you're connected!"
+```
+
+```json
+{ "ok": true, "message_id": 884213, "conversation_id": 90331 }
+```
+
+That's a complete, real integration: a paired CLI, a customer who's consented to connect, and a message actually delivered. ([More detail &darr;](#messaging-external-team))
+
+**What's next.** Everything below is reference material for the rest of the commands  -  Verify approvals, Ad cards, escalations, webhooks, scripting with `--json`, and running this unattended on a server. Jump to the [Command &rarr; Swagger endpoint table](#commands) if you want to go straight to a specific one.
+
 ## Install
 
 ```bash
