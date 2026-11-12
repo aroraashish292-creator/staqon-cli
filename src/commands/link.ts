@@ -1,6 +1,7 @@
-﻿import { Command } from 'commander';
+import { Command } from 'commander';
 import { proxy } from '../api/client.js';
 import { fail, printJson } from '../output.js';
+import type { LinkListResponse } from '../api/responses.js';
 
 /**
  * Link ("Link my workspace with StaqOn") -- unlike every other command family, this one has no
@@ -35,7 +36,7 @@ export function registerLinkCommands(program: Command): void {
     .option('--offset <n>', 'rows to skip (requires --limit)')
     .action(async (opts: { limit?: string; offset?: string }) => {
       try {
-        const body = await proxy('link/list', {
+        const body = await proxy<LinkListResponse>('link/list', {
           method: 'GET',
           query: { limit: opts.limit, offset: opts.offset },
         });

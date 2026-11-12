@@ -1,4 +1,4 @@
-﻿import { BASE_URL, loadSession, saveSession, clearSession } from '../config.js';
+import { BASE_URL, loadSession, saveSession, clearSession } from '../config.js';
 
 export class StaqOnApiError extends Error {
   constructor(
@@ -42,8 +42,18 @@ function buildQuery(params: Record<string, string | number | undefined> = {}): s
  *   X-StaqOn-Team: <team id or slug>   (only when the workspace has >1 eligible team)
  * Never sends X-API-Key — the proxy drops it server-side anyway; the CLI
  * never holds, or needs, a raw tenant key.
+ *
+ * Generic over its return type `T` (default: the old untyped
+ * Record<string, unknown>, so any existing call site that doesn't supply a
+ * type parameter keeps compiling and behaving exactly as before). Callers
+ * that know their endpoint's real response shape pass it explicitly, e.g.
+ * `proxy<AdSendResponse>('external/ad', {...})` — see api/responses.ts for
+ * the full set of shapes, each one transcribed from a real server response
+ * confirmed live this session (Nov 2026), not invented from the endpoint's
+ * name. This is a compile-time-only annotation: the server's actual JSON is
+ * trusted as-is and not runtime-validated against T.
  */
-export async function proxy(ep: string, opts: CallOptions = {}): Promise<Record<string, unknown>> {
+export async function proxy<T = Record<string, unknown>>(ep: string, opts: CallOptions = {}): Promise<T> {
   const session = await loadSession();
   if (!session) {
     throw new StaqOnApiError(401, { error: 'Not logged in. Run: staqon login' });
@@ -84,7 +94,7 @@ export async function proxy(ep: string, opts: CallOptions = {}): Promise<Record<
     });
   }
   if (!res.ok) throw new StaqOnApiError(res.status, body, retryAfter);
-  return body;
+  return body as T;
 }
 
 /** `_ep=whoami` — no backing file; the proxy answers directly with session/workspace/limits/access. */

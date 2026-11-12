@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { proxy, MAX_LIST_LIMIT } from '../api/client.js';
 import { fail, printJson } from '../output.js';
 import { cardOpt, parseCardOpt } from '../card.js';
+import type { CommentDryRunResponse, MessageSendDryRunResponse, InternalMessageDryRunResponse } from '../api/responses.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -19,7 +20,9 @@ export function registerMessagingCommands(program: Command): void {
       .option('--dry-run', 'validate everything and report who/where this would send to, without sending anything'),
   ).action(async (opts: { email: string; message: string; team?: string; dryRun?: boolean }) => {
     try {
-      const body = await proxy('external/message', {
+      // Real-send response shape not yet confirmed against a live call — stays untyped
+      // (proxy()'s default) until that's done; dry_run's shape IS confirmed.
+      const body = await proxy<MessageSendDryRunResponse | Record<string, unknown>>('external/message', {
         method: 'POST',
         team: opts.team,
         json: { email: opts.email, message: opts.message, dry_run: opts.dryRun || undefined },
@@ -57,7 +60,7 @@ export function registerMessagingCommands(program: Command): void {
     }) => {
       try {
         const card = parseCardOpt(opts);
-        const body = await proxy('external/comment', {
+        const body = await proxy<CommentDryRunResponse | Record<string, unknown>>('external/comment', {
           method: 'POST',
           team: opts.team,
           json: { username: opts.username, comment: opts.comment, external_ref: opts.externalRef, card, dry_run: opts.dryRun || undefined },
@@ -119,7 +122,7 @@ export function registerMessagingCommands(program: Command): void {
     }) => {
       try {
         const card = parseCardOpt(opts);
-        const body = await proxy('internal/message', {
+        const body = await proxy<InternalMessageDryRunResponse | Record<string, unknown>>('internal/message', {
           method: 'POST',
           team: opts.team,
           json: {

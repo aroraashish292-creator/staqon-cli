@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { proxy } from '../api/client.js';
 import { fail, printJson } from '../output.js';
 import { cardOpt, parseCardOpt } from '../card.js';
+import type { VerifyStartDryRunResponse } from '../api/responses.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -37,7 +38,7 @@ export function registerVerifyCommands(program: Command): void {
         if (card !== undefined && typeof card === 'object' && card !== null && 'button' in card) {
           fail(new Error('card.button is not allowed for verification requests (the server rejects it with 400)'));
         }
-        const body = await proxy('external/staqon-verify-start', {
+        const body = await proxy<VerifyStartDryRunResponse | Record<string, unknown>>('external/staqon-verify-start', {
           method: 'POST',
           team: opts.team,
           json: {

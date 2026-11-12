@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { proxy, MAX_LIST_LIMIT } from '../api/client.js';
 import { fail, printJson, ok } from '../output.js';
+import type { MembersListResponse, MemberGetResponse } from '../api/responses.js';
 
 function teamOpt(cmd: Command): Command {
   return cmd.option('--team <idOrSlug>', 'team id or slug — only needed if the workspace has more than one eligible team');
@@ -18,7 +19,7 @@ export function registerMemberCommands(program: Command): void {
       .option('--search <text>', 'match against name or email'),
   ).action(async (opts: { page: string; limit: string; search?: string; team?: string }) => {
     try {
-      const body = await proxy('external/members', {
+      const body = await proxy<MembersListResponse | Record<string, unknown>>('external/members', {
         method: 'GET',
         team: opts.team,
         query: { page: opts.page, limit: opts.limit, search: opts.search },
@@ -37,7 +38,7 @@ export function registerMemberCommands(program: Command): void {
       .option('--member-id <id>'),
   ).action(async (opts: { email?: string; memberId?: string; team?: string }) => {
     try {
-      const body = await proxy('external/member', {
+      const body = await proxy<MemberGetResponse>('external/member', {
         method: 'GET',
         team: opts.team,
         query: { email: opts.email, member_id: opts.memberId },
