@@ -2,6 +2,10 @@
 
 All notable changes to `@staqon.one/cli` are documented here. Versions follow `MAJOR.MINOR.PATCH`. From 1.0.0 onward, a MINOR release never breaks an existing command or flag  -  only a MAJOR (2.0.0+) release would.
 
+## 2.0.2
+
+- **CI/CD hardening**: added CodeQL security scanning, Dependabot dependency updates, an `npm audit` step in CI, and branch protection on `main` requiring CI + CodeQL to pass before merge. No CLI behavior change.
+- Dependency bumps: `commander` 12→15, `open` 10→11, `@types/node` 20→26, and GitHub Actions `checkout`/`setup-node`/`codeql-action` to their latest majors.
 
 ## 2.0.1
 
