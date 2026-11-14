@@ -170,3 +170,11 @@ export interface LinkListResponse {
   links: LinkConnection[];
   pagination?: LinkListPagination;
 }
+
+
+// ---------- link revoke (link/revoke) — CONFIRMED live Nov 14 2026 ----------
+// Always {ok:true} on success -- identical on first revoke, repeat revoke, and unknown
+// external_ref (no distinguishing response, by design, so nothing is probeable).
+export interface LinkRevokeResponse {
+  ok: true;
+}

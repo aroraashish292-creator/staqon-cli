@@ -177,6 +177,7 @@ Every command below names the exact Swagger/OpenAPI path it calls (`GET`/`POST` 
 | `escalation list` / `escalation get` | `GET /external/escalations.php` |
 | `link invite` | `POST /api/link-invite.php` |
 | `link list` | `GET /api/link-list.php` |
+| `link revoke` | `POST /api/link-revoke.php` |
 | `status` | `GET /external/status.php` (or `GET /internal/status.php` with `--internal`) |
 | `webhook status` | `GET /external/webhook-status.php` |
 | `webhook status --purpose ad` | `GET /external/ad-webhook-status.php`\* |
@@ -498,17 +499,19 @@ staqon escalation get --matter-id 42
 }
 ```
 
-### Link  -  invite a customer, list who's linked
+### Link  -  invite a customer, list who's linked, or revoke a connection
 
 ```bash
 staqon link invite --email jane@example.com --external-ref customer-482
 staqon link list [--limit 50 --offset 0]
+staqon link revoke --external-ref customer-482
 ```
 
 Link has no `--team`  -  it's one connection per **workspace**, not per team, and the server resolves your workspace's single active Link key on its own.
 
 - `invite` creates a single-use invite token for one customer and returns `{token, short_code, expires_in, confirm_url}`  -  **you deliver that to the customer yourself** (email, SMS, your own CRM UI); StaqOn never emails, texts, or pushes anything to them at this step. The token/short code are shown once. A new invite for the same `--external-ref` supersedes an older still-pending one for that same customer reference.
 - `list` returns your workspace's already-**approved** Link connections: each customer's CRM email (`crm_email`), link type, StaqOn username, status, and when they linked. Omit `--limit`/`--offset` for the full list (no `pagination` key in the response at all in that case  -  confirmed live); pass both together to page through it (max `--limit` 200), and the response then adds a `pagination: {limit, offset, total, has_more}` object.
+- `revoke` revokes an **approved** Link connection, identified by the same `--external-ref` you used to invite them. It also expires any still-pending invite for that same reference, so an old unconfirmed token can't later bring the connection back. Revoking an already-revoked or unknown `--external-ref` is safe and idempotent -- always `{"ok":true}`, with no way to tell the two cases apart (by design, so nothing is probeable). Fires the same `link.status_changed` webhook as a member's own revoke, with `status: "revoked"` and both `external_ref` and `crm_email` in the payload.
 - Requires Link to be set up for your workspace (Workspace Settings → Link)  -  if it isn't, you'll get a 409 `no_link_key`.
 - Your Link signing secret never leaves StaqOn's server: the CLI calls this through the same paired session as every other command, and StaqOn signs the request on your workspace's behalf.
 
@@ -543,6 +546,11 @@ Link has no `--team`  -  it's one connection per **workspace**, not per team, an
     { "crm_email": "gnagender14@gmail.com", "link_type": "external", "username": "8719y7013", "status": "approved", "linked_at": "2026-11-12 10:55:19" }
   ]
 }
+```
+
+**Example  -  `link revoke`:**
+```json
+{ "ok": true }
 ```
 
 ### Status and webhook health
@@ -827,10 +835,11 @@ The request body and response shape for each `_ep` are **identical** to the matc
 | `internal/webhook-status` | [`internal-webhook status`](#webhooks) |
 | `internal/webhook-configure` | [`internal-webhook set-url`/`rotate`](#webhooks) |
 | `internal/status` | internal status |
-| `link/invite` | [`link invite`](#link----invite-a-customer-list-whos-linked) |
-| `link/list` | [`link list`](#link----invite-a-customer-list-whos-linked) |
+| `link/invite` | [`link invite`](#link----invite-a-customer-list-whos-linked-or-revoke-a-connection) |
+| `link/list` | [`link list`](#link----invite-a-customer-list-whos-linked-or-revoke-a-connection) |
+| `link/revoke` | [`link revoke`](#link----invite-a-customer-list-whos-linked-or-revoke-a-connection) |
 
-`link/invite` and `link/list` are the one exception to "identical to the matching endpoint's docs": they're a separate auth mechanism entirely (the workspace's single Link key, HMAC-signed server-side  -  no API key or team selection involved), so there's no separate `link-invite.php`/`link-list.php` to call directly outside the proxy; the proxy *is* the only way to reach them, Node or not.
+`link/invite`, `link/list`, and `link/revoke` are the one exception to "identical to the matching endpoint's docs": they're a separate auth mechanism entirely (the workspace's single Link key, HMAC-signed server-side  -  no API key or team selection involved), so there's no separate `link-invite.php`/`link-list.php`/`link-revoke.php` to call directly outside the proxy; the proxy *is* the only way to reach them, Node or not.
 
 ## A note on API keys and this CLI
 

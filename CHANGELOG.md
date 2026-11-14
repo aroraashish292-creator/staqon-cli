@@ -2,6 +2,14 @@
 
 All notable changes to `@staqon.one/cli` are documented here. Versions follow `MAJOR.MINOR.PATCH`. From 1.0.0 onward, a MINOR release never breaks an existing command or flag  -  only a MAJOR (2.0.0+) release would.
 
+
+## 2.1.0
+
+- **`link revoke`** (new command). Revoke an approved Link connection by `--external-ref` -- also expires any still-pending invite for that same reference, so an old unconfirmed token can't resurrect a revoked connection. Idempotent: revoking an already-revoked or unknown reference returns the identical `{"ok":true}`, by design, so nothing about a connection's prior state is probeable. New typed response shape `LinkRevokeResponse` in `src/api/responses.ts`.
+
+No server-side change in this release beyond what already shipped independently -- `POST /api/link-revoke.php` was deployed to stage and live on 2026-11-14 ahead of this CLI release.
+
+
 ## 2.0.2
 
 - **CI/CD hardening**: added CodeQL security scanning, Dependabot dependency updates, an `npm audit` step in CI, and branch protection on `main` requiring CI + CodeQL to pass before merge. No CLI behavior change.
