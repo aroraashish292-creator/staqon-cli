@@ -2,6 +2,11 @@
 
 All notable changes to `@staqon.one/cli` are documented here. Versions follow `MAJOR.MINOR.PATCH`. From 1.0.0 onward, a MINOR release never breaks an existing command or flag  -  only a MAJOR (2.0.0+) release would.
 
+## 2.2.0
+
+- **`marquee set` / `marquee clear`** (new commands). Set or clear a short scrolling text line shown at the top of a team's StaqOn — a workspace-wide broadcast for everyone on that team, or targeted at one member by `--username`. A marquee key now covers an entire surface (every External team, or every Internal team) rather than one team, so `--team <idOrSlug>` is **required** on both commands to say which team the line applies to. Plain text only (HTML is rejected), max 200 words / 1,500 characters. A second `set` for the same target (or the broadcast) replaces the previous line — no stacking, no expiry; `clear` is idempotent (clearing an already-clear line still returns `{"ok":true}`).
+
+Requires a `marquee`-purpose API key — created in Workspace Settings → API → Marquee API, one per workspace per surface (External or Internal). No server-side change needed in this release beyond what already shipped independently — the Marquee API (including this surface-wide key rescope) was deployed to stage and live on 2026-11-14 ahead of this CLI release.
 
 ## 2.1.0
 

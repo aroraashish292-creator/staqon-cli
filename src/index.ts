@@ -11,6 +11,7 @@ import { registerAdCommands } from './commands/ad.js';
 import { registerMiscCommands } from './commands/misc.js';
 import { registerLinkCommands } from './commands/link.js';
 import { registerWebhookCommands } from './commands/webhook.js';
+import { registerMarqueeCommands } from './commands/marquee.js';
 import { setJsonErrors } from './output.js';
 
 // Read the version from package.json rather than hardcoding it here, so `staqon --version`
@@ -46,6 +47,7 @@ registerAdCommands(program);
 registerMiscCommands(program);
 registerLinkCommands(program);
 registerWebhookCommands(program);
+registerMarqueeCommands(program);
 
 program.parseAsync(process.argv).catch((e) => {
   console.error('Error:', e instanceof Error ? e.message : e);
