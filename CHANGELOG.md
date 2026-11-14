@@ -4,9 +4,9 @@ All notable changes to `@staqon.one/cli` are documented here. Versions follow `M
 
 ## 2.2.0
 
-- **`marquee set` / `marquee clear`** (new commands). Set or clear a short scrolling text line shown at the top of a team's StaqOn — a workspace-wide broadcast for everyone on that team, or targeted at one member by `--username`. A marquee key now covers an entire surface (every External team, or every Internal team) rather than one team, so `--team <idOrSlug>` is **required** on both commands to say which team the line applies to. Plain text only (HTML is rejected), max 200 words / 1,500 characters. A second `set` for the same target (or the broadcast) replaces the previous line — no stacking, no expiry; `clear` is idempotent (clearing an already-clear line still returns `{"ok":true}`).
+- **`marquee set` / `marquee clear`** (new commands). Set or clear a short scrolling text line shown at the top of your workspace — a surface-wide broadcast for everyone on that surface (External or Internal), or targeted at one member by `--username`. A marquee key covers your whole workspace on one surface, so there is **no `--team` flag** — the line is never scoped to a team and never shown inside a chat window, only as a passive strip at the top of the workspace. Plain text only (HTML is rejected), max 200 words / 1,500 characters. A second `set` for the same target (or the broadcast) replaces the previous line — no stacking, no expiry; `clear` is idempotent (clearing an already-clear line still returns `{"ok":true}`).
 
-Requires a `marquee`-purpose API key — created in Workspace Settings → API → Marquee API, one per workspace per surface (External or Internal). No server-side change needed in this release beyond what already shipped independently — the Marquee API (including this surface-wide key rescope) was deployed to stage and live on 2026-11-14 ahead of this CLI release.
+Requires a `marquee`-purpose API key — created in Workspace Settings → API → Marquee API, one per workspace per surface (External or Internal). No server-side change needed in this release beyond what already shipped independently — the Marquee API's workspace+surface-only rescope (removing all team-level targeting, including the `X-StaqOn-Team` header which the server now simply ignores for marquee) was deployed to stage and live on 2026-11-14 ahead of this CLI release.
 
 ## 2.1.0
 

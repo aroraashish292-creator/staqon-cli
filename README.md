@@ -843,20 +843,20 @@ The request body and response shape for each `_ep` are **identical** to the matc
 
 `link/invite`, `link/list`, and `link/revoke` are the one exception to "identical to the matching endpoint's docs": they're a separate auth mechanism entirely (the workspace's single Link key, HMAC-signed server-side  -  no API key or team selection involved), so there's no separate `link-invite.php`/`link-list.php`/`link-revoke.php` to call directly outside the proxy; the proxy *is* the only way to reach them, Node or not.
 
-### Marquee  -  a scrolling line at the top of a team's StaqOn
+### Marquee  -  a scrolling line at the top of your workspace
 
 ```bash
-staqon marquee set --team partners-channels --message "Branch closed Monday for maintenance."
-staqon marquee set --team partners-channels --username priya_s --message "Your card is ready for pickup."
-staqon marquee clear --team partners-channels --username priya_s
-staqon marquee clear --team partners-channels
+staqon marquee set --message "Branch closed Monday for maintenance."
+staqon marquee set --username priya_s --message "Your card is ready for pickup."
+staqon marquee clear --username priya_s
+staqon marquee clear
 ```
 
-Unlike every other command family, a marquee key is **not** tied to one team — one key covers every team on its surface (all External teams, or all Internal teams, in your workspace). Because of that, `--team <idOrSlug>` is required on every `marquee` call to say which team the line applies to; pass `--internal` to use your Internal-surface key instead of External.
+A marquee key covers your whole workspace on one surface (all External teams, or all Internal teams) — there is no `--team` flag at all, and the line is never scoped to one team or shown inside any team's chat window. It shows only as a single passive strip at the top of the workspace. Pass `--internal` to use your Internal-surface key instead of External.
 
-- `set` requires `--message` (plain text, max 200 words / 1,500 characters — any HTML tag is rejected with a 422, never silently stripped). Omit `--username` to set the team's **broadcast** line, shown to every member of that team; pass it to target **one member** instead. A member's own line always wins over the broadcast for them. A second `set` for the same target — or the broadcast — replaces the previous line outright: no stacking, no expiry, it stays until you `set` or `clear` it again.
-- `clear` takes the same `--team`/`--username` shape. Clearing a line that isn't set still returns `{"ok":true}` — idempotent by design.
-- `--username` must belong to a current member of that team. An unknown username and a username that's a member of a *different* team get the identical 404 — StaqOn never confirms whether a username exists.
+- `set` requires `--message` (plain text, max 200 words / 1,500 characters — any HTML tag is rejected with a 422, never silently stripped). Omit `--username` to set the **surface-wide broadcast** line, shown to every member on that surface of your workspace; pass it to target **one member** instead, wherever in the workspace they see the strip. A member's own line always wins over the broadcast for them. A second `set` for the same target — or the broadcast — replaces the previous line outright: no stacking, no expiry, it stays until you `set` or `clear` it again.
+- `clear` takes the same `--username` shape. Clearing a line that isn't set still returns `{"ok":true}` — idempotent by design.
+- `--username` must belong to a current member of any non-archived team on that surface of your workspace. An unknown username and a username with no active membership on that surface get the identical 404 — StaqOn never confirms whether a username exists. A member who belongs to several teams of that surface still gets exactly one line.
 - Requires a `marquee`-purpose API key for your workspace (Workspace Settings → API → Marquee API). A key you've revoked stops showing its lines immediately; a message- or ad-purpose key gets a 403 here.
 
 ## A note on API keys and this CLI
